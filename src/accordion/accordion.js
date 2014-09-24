@@ -54,7 +54,7 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
 })
 
 // The accordion-group directive indicates a block of html that will expand and collapse in an accordion
-.directive('accordionGroup', function() {
+.directive('accordionGroup', function($timeout) {
   return {
     require:'^accordion',         // We need this directive to be inside an accordion
     restrict:'EA',
@@ -66,15 +66,23 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
       isOpen: '=?',
       isDisabled: '=?'
     },
-    controller: function() {
+    controller: function($scope) {
       this.setHeading = function(element) {
         this.heading = element;
+      };
+
+      this.isOpen = function() {
+        return $scope.isOpen;
       };
     },
     link: function(scope, element, attrs, accordionCtrl) {
       accordionCtrl.addGroup(scope);
 
       scope.$watch('isOpen', function(value) {
+        $timeout(function () {
+          scope.isExpanded = scope.isOpen;
+        });
+
         if ( value ) {
           accordionCtrl.closeOthers(scope);
         }
@@ -88,6 +96,7 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
     }
   };
 })
+
 
 // Use accordion-heading below an accordion-group to provide a heading containing HTML
 // <accordion-group>
@@ -105,6 +114,26 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
       // so that it can be transcluded into the right place in the template
       // [The second parameter to transclude causes the elements to be cloned so that they work in ng-repeat]
       accordionGroupCtrl.setHeading(transclude(scope, function() {}));
+    }
+  };
+})
+
+// Use the accordion-body directive to lazily load your content
+.directive('accordionBody', function() {
+  return {
+    restrict: 'EA',
+    transclude: true,
+    require: '^accordionGroup',
+    link: function(scope, element, attr, accordionGroupCtrl, transclude) {
+      var unwatch = scope.$watch(accordionGroupCtrl.isOpen, function(value) {
+        if ( value ) {
+          transclude(scope.$parent, function (clone) {
+            element.html('');
+            element.append(clone);
+          });
+          unwatch();
+        }
+      });
     }
   };
 })

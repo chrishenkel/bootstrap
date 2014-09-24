@@ -103,7 +103,7 @@ describe('accordion', function () {
 
   describe('accordion-group', function () {
 
-    var scope, $compile;
+    var scope, $compile, $timeout;
     var element, groups;
     var findGroupLink = function (index) {
       return groups.eq(index).find('a').eq(0);
@@ -113,9 +113,10 @@ describe('accordion', function () {
     };
 
 
-    beforeEach(inject(function(_$rootScope_, _$compile_) {
+    beforeEach(inject(function(_$rootScope_, _$compile_, _$timeout_) {
       scope = _$rootScope_;
       $compile = _$compile_;
+      $timeout = _$timeout_;
     }));
 
     afterEach(function () {
@@ -258,6 +259,7 @@ describe('accordion', function () {
         $compile(element)(scope);
         scope.$digest();
         groups = element.find('.panel');
+        $timeout.flush();
       });
 
       afterEach(function() {
@@ -407,6 +409,53 @@ describe('accordion', function () {
         expect(findGroupLink(0).text()).toBe('1');
         expect(findGroupLink(1).text()).toBe('2');
         expect(findGroupLink(2).text()).toBe('3');
+      });
+    });
+
+    describe('accordion-body directive lazy loads content', function() {
+      beforeEach(function () {
+        var tpl =
+          '<accordion>' +
+          '<accordion-group heading="Test header">' +
+          '<accordion-body>lazy loaded content</accordion-body>' +
+          '</accordion-group>' +
+          '</accordion>';
+        element = $compile(tpl)(scope);
+        scope.$digest();
+        groups = element.find('.panel');
+      });
+
+      it('should load content on clicking group link', function () {
+        expect(findGroupBody(0).find('accordion-body').eq(0).text()).toBe('');
+        findGroupLink(0).click();
+        scope.$digest();
+        expect(findGroupBody(0).find('accordion-body').eq(0).text()).toBe('lazy loaded content');
+      });
+    });
+
+    describe('accordion-body directive lazy loads content, with repeating accordion-groups', function() {
+      beforeEach(function () {
+        var tpl =
+          '<accordion>' +
+          '<accordion-group heading="Test header" ng-repeat="x in [1,2,3]">' +
+          '<accordion-body>{{x}}</accordion-body>' +
+          '</accordion-group>' +
+          '</accordion>';
+        element = $compile(tpl)(scope);
+        scope.$digest();
+        groups = element.find('.panel');
+      });
+
+      it('should load content on succesively clicking consecutive group links', function () {
+        for(var i = 0; i < 3; i++) {
+          expect(findGroupBody(i).find('accordion-body').eq(0).text()).toBe('');
+        }
+
+        for(i = 0; i < 3; i++) {
+          findGroupLink(i).click();
+          scope.$digest();
+          expect(findGroupBody(i).find('accordion-body').eq(0).text()).toBe((i+1) + '');
+        }
       });
     });
 
